@@ -4,7 +4,7 @@ if nargin < 1
 end
 
 load(animalDataPath,'SessionSplitSpikeTrains');
-pairs = nchoosek(1:length(SessionSplitSpikeTrains),1);
+pairs = nchoosek(1:length(SessionSplitSpikeTrains),2);
 
 spike_path = input('Enter path where spikes will be on cluster: ', 's');
 save_path = input('Enter path where results will be saved on cluster: ', 's');

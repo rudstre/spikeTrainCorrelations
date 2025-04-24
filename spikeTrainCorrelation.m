@@ -90,7 +90,7 @@ for pairIdx = 1:size(workerPairs, 1)
 
         % If max is at 0 and super high, probably actually the same unit
         [maxCorr,lagMax] = max(crossCorr);
-        if lagValues_samp(lagMax) == 0 && maxCorr > 5*lambda
+        if lagValues_samp(lagMax) == 0 && maxCorr > 2*lambda
             continue  
         end
 
