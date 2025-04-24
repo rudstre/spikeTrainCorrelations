@@ -13,9 +13,9 @@ currentWorkerId = workerId;
 % Load configuration options
 options = load(optPath).opt;
 pairsToProcess = options.pairs;
-binSize = 4;%options.binning; % number of weeks per time bin
-centralWindowSize_ms = 5;%options.central_window; % range around which to detect peaks
-baselineMaxLag_ms = 50;%options.max_lag;
+binSize = 4; % number of weeks per time bin
+centralWindowSize_ms = 5; % range around which to detect peaks
+baselineMaxLag_ms = 50;
 
 % Assign pairs to the current worker
 pairGroups = generatePairGroups(max(pairsToProcess(:)), totalWorkers);
@@ -88,20 +88,18 @@ for pairIdx = 1:size(workerPairs, 1)
             continue
         end
 
-        % If max is at 0, probably actually the same unit
-        % [maxCorr,lagMax] = max(crossCorr);
-        % if lagValues_samp(lagMax) == 0 && maxCorr > 4*lambda
-        %     continue
-        % end
+        % If max is at 0 and super high, probably actually the same unit
+        [maxCorr,lagMax] = max(crossCorr);
+        if lagValues_samp(lagMax) == 0 && maxCorr > 5*lambda
+            continue  
+        end
 
         % Positive lags
-        [zscorePosMax(neuronPair(1), neuronPair(2), timeGroupIdx), ...
-            lagPosMax(neuronPair(1), neuronPair(2), timeGroupIdx)] = ...
+        zscorePosMax(neuronPair(1), neuronPair(2), timeGroupIdx) = ...
             computeExtrema(crossCorr, lagValues, [1 centralWindowSize], lambda, 2);
 
         % Negative lags
-        [zscoreNegMax(neuronPair(1), neuronPair(2), timeGroupIdx), ...
-            lagNegMax(neuronPair(1), neuronPair(2), timeGroupIdx)] = ...
+        zscoreNegMax(neuronPair(1), neuronPair(2), timeGroupIdx) = ...
             computeExtrema(crossCorr, lagValues, [-centralWindowSize -1], lambda, 2);
     end
 end
@@ -112,7 +110,7 @@ logMessage('Results saved successfully.\n');
 end
 
 
-function [zFinal, lagFinal] = computeExtrema(ccf, lags, lagRange, lambda, ~)
+function zFinal = computeExtrema(ccf, lags, lagRange, lambda, ~)
 % computeExtremaWindow
 %
 %   [zFinal, lagFinal] = computeExtremaWindow(ccf, lags, lagRange, lambda, ~)
@@ -127,12 +125,8 @@ if sum(ccf(iswithin(lags,-1,1))) < 1
     lagRange(onePos) = sgn + 2 * sgn;
 end
 
-% significance threshold
-threshold = 2;
-
 % restrict to specified lag range
 idx = iswithin(lags, lagRange(:));
-lags_sub = lags(idx);
 ccf_sub  = ccf(idx);
 
 % total counts in window and expected sum
@@ -147,32 +141,24 @@ if totalCount > expectedSum
     % excitation (upper‐tail)
     p = 1 - poisscdf(totalCount-1, expectedSum);
     if p > 0
-        zRaw = norminv(1 - p);
+        zFinal = norminv(1 - p);
     else
-        zRaw = zApprox(totalCount, expectedSum);
+        zFinal = zApprox(totalCount, expectedSum);
     end
 
 elseif totalCount < expectedSum
     % inhibition (lower‐tail)
     p = poisscdf(totalCount, expectedSum);
     if p > 0
-        zRaw = norminv(p);
+        zFinal = norminv(p);
     else
-        zRaw = -zApprox(max(totalCount,1), expectedSum);
+        zFinal = -zApprox(max(totalCount,1), expectedSum);
     end
 
 else
-    zRaw = 0;
+    zFinal = 0;
 end
 
-% assign and apply threshold
-if abs(zRaw) < threshold
-    zFinal   = 0;
-    lagFinal = 0;
-else
-    zFinal   = zRaw;
-    lagFinal = mean(lags_sub);
-end
 end
 
 function [spikes, queue] = loadFromCache(cache, queue, unitId, spikePath, maxCacheSize)
